@@ -1,0 +1,3 @@
+[submodule "pyfacebook"]
+	path = pyfacebook
+	url = git://github.com/sciyoshi/pyfacebook.git
