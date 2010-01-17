@@ -81,9 +81,7 @@ def main():
                 attrs={'type': 'html'},
                 text=note['content'].replace('\n', '<br/>'))
     
-    sys.stdout.write('<?xml version="1.0" encoding="UTF-8"?>\n')
-    s = ET.tostring(feed, 'ascii')
-    sys.stdout.write(s)
+    ET.ElementTree(feed).write(sys.stdout)
 
     return fb
 
