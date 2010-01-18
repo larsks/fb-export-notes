@@ -2,6 +2,9 @@
 
 import os
 import sys
+import time
+
+from xml.etree import ElementTree as ET
 
 HERE = os.path.dirname(__file__)
 LIBDIR = 'runtime/lib/python2.5'
@@ -25,20 +28,41 @@ try:
 except ImportError:
     pass
 
+NS_ATOM         = 'http://www.w3.org/2005/Atom'
+
+def atomElement(e):
+    return '{%s}%s' % (NS_ATOM, e)
+
+def fmtTime(t):
+    return time.strftime('%Y-%m-%dT%H:%M:%S.000-05:00', time.localtime(t))
+
+def addSubElement(parent, name, attrs=None, text=None):
+    ele = ET.SubElement(parent, name)
+    if attrs:
+        for k, v in attrs.items():
+            ele.set(k,v)
+    if text:
+        ele.text = text
+
+    return ele
+
 def fb_require_login(f):
     def _(self, *args, **kwargs):
         fb = cherrypy.request.facebook
 
-        if 'fb_sig_session_key' in kwargs and 'fb_sig_user' in kwargs:
+        if 'session_key' in cherrypy.session and 'uid' in cherrypy.session:
+            fb.session_key = cherrypy.session['session_key']
+            fb.uid = cherrypy.session['uid']
+        elif 'fb_sig_session_key' in kwargs and 'fb_sig_user' in kwargs:
             fb.session_key = kwargs['fb_sig_session_key']
-            fb.uid = int(kwargs['fb_sig_user'])
+            fb.uid = kwargs['fb_sig_user']
         elif 'auth_token' in kwargs:
             fb.auth.getSession()
-            cherrypy.sessio['session_key'] = fb.session_key
-            cherrypy.sessio['uid'] = fb.uid
         else:
             return fb.redirect(fb.get_login_url())
 
+        cherrypy.session['session_key'] = fb.session_key
+        cherrypy.session['uid'] = fb.uid
         return f(self, *args, **kwargs)
 
     return _
@@ -77,17 +101,139 @@ class Exporter:
                 text.append('<tr><td>%s</td><td>%s</td></tr>' % (k,v))
             text.append('</table>')
 
+        text.append('<p>session id: %s</p>' % cherrypy.session.id)
+
+        text.append('''<a href="%s/notes_xml?fb_sig_user=%s&fb_sig_session_key=%s"
+            >Notes (Atom feed)</a>''' % (
+                cherrypy.request.app.config['facebook']['base url'],
+                fb.uid,
+                fb.session_key))
+            
+        text.append('''<a href="%s/status_xml?fb_sig_user=%s&fb_sig_session_key=%s"
+            >Status (Atom feed)</a>''' % (
+                cherrypy.request.app.config['facebook']['base url'],
+                fb.uid,
+                fb.session_key))
+            
         return '\n'.join(text)
 
-class FacebookTool:
-    def __init__ (self, api_key, secret_key):
-        self.api_key = api_key
-        self.secret_key = secret_key
+    @cherrypy.expose
+    def session_info(self, **kwargs):
+        text = ['<h1>Session</h1>']
 
+        text.append('<p>session id: %s</p>' % cherrypy.session.id)
+        text.append('<table>')
+        for k,v in cherrypy.session.items():
+            text.append('<tr><td>%s</td><td>%s</td></tr>' % (k,v))
+        text.append('</table>')
+
+        return '\n'.join(text)
+
+    @cherrypy.expose
+    @fb_require_login
+    def notes(self, **kwargs):
+        fb = cherrypy.request.facebook
+        notes = fb.fql.query(
+                '''SELECT note_id, created_time,
+                    updated_time, title, content
+                    FROM note WHERE uid=%s''' % fb.uid)
+
+        text = [ '<h1>Notes</h1>' ]
+        text.append('<table>')
+        for note in notes:
+            text.append('<tr><td>%(note_id)s</td><td>%(title)s</td></tr>' % note)
+        text.append('</table>')
+
+        return '\n'.join(text)
+
+    @cherrypy.expose
+    @fb_require_login
+    def status_xml(self, **kwargs):
+        cherrypy.response.headers['Content-Type'] = "application/atom+xml"
+        fb = cherrypy.request.facebook
+
+        statuses = fb.fql.query(
+                '''SELECT status_id, time, source, message 
+                FROM status
+                WHERE uid=%s
+                ORDER BY time''' % fb.uid)
+
+        user = fb.users.getInfo(fb.uid, 'first_name, profile_url')[0]
+        name = user['first_name']
+        profile_url = user['profile_url']
+
+        feed = ET.Element(atomElement('feed'))
+        addSubElement(feed, atomElement('title'),
+                attrs={'type': 'text'}, 
+                text='Notes for %s' % name)
+        addSubElement(addSubElement(feed, atomElement('author')),
+                atomElement('name'),
+                text=name)
+
+        for status in statuses:
+            entry = addSubElement(feed, atomElement('entry'))
+            addSubElement(entry, atomElement('id'),
+                    text='%s?v=feed&story_fbid=%s' % (profile_url,
+                        status['status_id']))
+            addSubElement(entry, atomElement('title'),
+                    attrs={'type': 'text'},
+                    text=status['message'])
+            addSubElement(entry, atomElement('published'),
+                    text=fmtTime(status['time']))
+            addSubElement(entry, atomElement('author'),
+                    text=name)
+            addSubElement(entry, atomElement('content'),
+                    attrs={'type': 'html'},
+                    text=status['message'])
+        
+        return ET.tostring(feed)
+
+    @cherrypy.expose
+    @fb_require_login
+    def notes_xml(self, **kwargs):
+        cherrypy.response.headers['Content-Type'] = "application/atom+xml"
+        fb = cherrypy.request.facebook
+        notes = fb.fql.query(
+                '''SELECT note_id, created_time,
+                    updated_time, title, content
+                    FROM note
+                    WHERE uid=%s
+                    ORDER BY created_time''' % fb.uid)
+
+        name = fb.users.getInfo(fb.uid, 'first_name')[0]['first_name']
+
+        feed = ET.Element(atomElement('feed'))
+        addSubElement(feed, atomElement('title'),
+                attrs={'type': 'text'}, 
+                text='Notes for %s' % name)
+        addSubElement(addSubElement(feed, atomElement('author')),
+                atomElement('name'),
+                text=name)
+
+        for note in notes:
+            entry = addSubElement(feed, atomElement('entry'))
+            addSubElement(entry, atomElement('id'),
+                    text='http://www.facebook.com/notes.php?id=%s' % note['note_id'])
+            addSubElement(entry, atomElement('title'),
+                    attrs={'type': 'text'},
+                    text=note['title'])
+            addSubElement(entry, atomElement('published'),
+                    text=fmtTime(note['created_time']))
+            addSubElement(entry, atomElement('updated'),
+                    text=fmtTime(note['updated_time']))
+            addSubElement(entry, atomElement('author'),
+                    text=name)
+            addSubElement(entry, atomElement('content'),
+                    attrs={'type': 'html'},
+                    text=note['content'].replace('\n', '<br/>'))
+        
+        return ET.tostring(feed)
+
+class FacebookTool:
     def __call__(self):
         cherrypy.request.facebook = facebook.Facebook(
-                self.api_key,
-                self.secret_key)
+                cherrypy.request.app.config['facebook']['api key'],
+                cherrypy.request.app.config['facebook']['secret key'])
 
         cherrypy.request.facebook.redirect = self.redirect
 
@@ -98,25 +244,12 @@ class FacebookTool:
             raise cherrypy.HTTPRedirect(url)
 
 def main():
-    fb_file = open('facebook_keys.txt').readlines()
-    api_key = fb_file[0].rstrip()
-    secret_key = fb_file[1].rstrip()
-
     cherrypy.tools.facebook = cherrypy.Tool(
             'before_handler',
-            FacebookTool(api_key, secret_key))
+            FacebookTool())
 
     root = Exporter()
-    app = cherrypy.tree.mount(root, "/", config={
-        '/' : {
-            'tools.facebook.on'             : True,
-            'tools.sessions.on'             : True,
-            'tools.sessions.storage_type'   : "memcached",
-            'tools.sessions.servers'        : ['memcached://'],
-            'tools.sessions.name'           : 'fb_session',
-            'tools.sessions.clean_thread'   : True,
-            'tools.sessions.timeout'        : 60,
-            }})
+    app = cherrypy.tree.mount(root, "/", config='app.ini')
     wsgiref.handlers.CGIHandler().run(app)
 
 if __name__ == '__main__':
