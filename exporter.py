@@ -30,25 +30,10 @@ import csvformatter
 import htmlformatter
 import atomformatter
 
-NS_ATOM         = 'http://www.w3.org/2005/Atom'
-
-def atomElement(e):
-    return '{%s}%s' % (NS_ATOM, e)
-
-def fmtTime(t):
-    return time.strftime('%Y-%m-%dT%H:%M:%S.000-05:00', time.localtime(t))
-
-def addSubElement(parent, name, attrs=None, text=None):
-    ele = ET.SubElement(parent, name)
-    if attrs:
-        for k, v in attrs.items():
-            ele.set(k,v)
-    if text:
-        ele.text = text
-
-    return ele
-
 def fb_require_login(f):
+    '''Decorator for functions that require a valid Facebook session to
+    operate.'''
+
     def _(self, *args, **kwargs):
         fb = cherrypy.request.facebook
 
@@ -182,90 +167,10 @@ class Exporter:
 
         return feed
 
-    @cherrypy.expose
-    @fb_require_login
-    def status_xml(self, **kwargs):
-        cherrypy.response.headers['Content-Type'] = "application/atom+xml"
-        fb = cherrypy.request.facebook
-
-        statuses = fb.fql.query(
-                '''SELECT status_id, time, source, message 
-                FROM status
-                WHERE uid=%s
-                ORDER BY time''' % fb.uid)
-
-        user = fb.users.getInfo(fb.uid, 'first_name, profile_url')[0]
-        name = user['first_name']
-        profile_url = user['profile_url']
-
-        feed = ET.Element(atomElement('feed'))
-        addSubElement(feed, atomElement('title'),
-                attrs={'type': 'text'}, 
-                text='Notes for %s' % name)
-        addSubElement(addSubElement(feed, atomElement('author')),
-                atomElement('name'),
-                text=name)
-
-        for status in statuses:
-            entry = addSubElement(feed, atomElement('entry'))
-            addSubElement(entry, atomElement('id'),
-                    text='%s?v=feed&story_fbid=%s' % (profile_url,
-                        status['status_id']))
-            addSubElement(entry, atomElement('title'),
-                    attrs={'type': 'text'},
-                    text=status['message'])
-            addSubElement(entry, atomElement('published'),
-                    text=fmtTime(status['time']))
-            addSubElement(entry, atomElement('author'),
-                    text=name)
-            addSubElement(entry, atomElement('content'),
-                    attrs={'type': 'html'},
-                    text=status['message'])
-        
-        return ET.tostring(feed)
-
-    @cherrypy.expose
-    @fb_require_login
-    def notes_xml(self, **kwargs):
-        cherrypy.response.headers['Content-Type'] = "application/atom+xml"
-        fb = cherrypy.request.facebook
-        notes = fb.fql.query(
-                '''SELECT note_id, created_time,
-                    updated_time, title, content
-                    FROM note
-                    WHERE uid=%s
-                    ORDER BY created_time''' % fb.uid)
-
-        name = fb.users.getInfo(fb.uid, 'first_name')[0]['first_name']
-
-        feed = ET.Element(atomElement('feed'))
-        addSubElement(feed, atomElement('title'),
-                attrs={'type': 'text'}, 
-                text='Notes for %s' % name)
-        addSubElement(addSubElement(feed, atomElement('author')),
-                atomElement('name'),
-                text=name)
-
-        for note in notes:
-            entry = addSubElement(feed, atomElement('entry'))
-            addSubElement(entry, atomElement('id'),
-                    text='http://www.facebook.com/notes.php?id=%s' % note['note_id'])
-            addSubElement(entry, atomElement('title'),
-                    attrs={'type': 'text'},
-                    text=note['title'])
-            addSubElement(entry, atomElement('published'),
-                    text=fmtTime(note['created_time']))
-            addSubElement(entry, atomElement('updated'),
-                    text=fmtTime(note['updated_time']))
-            addSubElement(entry, atomElement('author'),
-                    text=name)
-            addSubElement(entry, atomElement('content'),
-                    attrs={'type': 'html'},
-                    text=note['content'].replace('\n', '<br/>'))
-        
-        return ET.tostring(feed)
-
 class FacebookTool:
+    '''This sets up a cherrypy.request.facebook for each incoming
+    request.'''
+
     def __call__(self):
         cherrypy.request.facebook = facebook.Facebook(
                 cherrypy.request.app.config['facebook']['api key'],
