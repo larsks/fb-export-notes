@@ -1,6 +1,24 @@
 <h1>Facebook Exporter</h1>
 
-<p>This application lets you export notes and status messages from Facebook.</p>
+<p>This application lets you export notes, status messages, and links from Facebook.</p>
+
+<h2>Author</h2>
+
+<p><a href="http://facebook.com/larsks">Lars Kellogg-Stedman</a></p>
+
+<h2>Limitations</h2>
+
+<p>Due to limitations of the Facebook platform you will not be able to access data from before
+July 2008.</p>
+
+<h2>Export</h2>
+
+{% if message %}
+<fb:error>
+	<fb:message>Export Error</fb:message>
+	{{message}}
+</fb:error>
+{% endif %}
 
 <form action="{{baseurl}}/export">
 	<input type="hidden" name="x_sig_user" value="{{fb.uid}}"/>
@@ -27,5 +45,8 @@
 		strict timeouts, an attempt to export your data will fail with a "DownloadError" 
 		message.  In general the error will go away if you reload the page.
 	</fb:explanation>
+
+	<p>If you encounter any problems with this application, please report them
+	on <a href="http://github.com/larsks/fb-export-notes/issues">the project site</a>.</p>
 </form>
 

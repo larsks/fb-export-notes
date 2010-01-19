@@ -4,6 +4,7 @@
 	<author>
 		<name>{{user.name}}</name>
 	</author>
+	<generator uri="http://github.com/larsks/fb-export-notes">Facebook Exporter</generator>
 
 	{% for entry in feed %}
 	<entry>
@@ -19,4 +20,10 @@
 	</entry>
 	{% endfor %}
 </feed>
+
+<!--
+This export was generated using Facebook Exporter, by
+Lars Kellogg-Stedman.  For more information,
+see http://github.com/larsks/fb-export-notes.
+-->
 
