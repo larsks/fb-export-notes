@@ -39,9 +39,8 @@ def fb_require_login(f):
     def _(self, *args, **kwargs):
         fb = cherrypy.request.facebook
 
-        if 'session_key' in cherrypy.session and 'uid' in cherrypy.session:
-            fb.session_key = cherrypy.session['session_key']
-            fb.uid = cherrypy.session['uid']
+        if False:
+            pass
         elif 'fb_sig_session_key' in kwargs and 'fb_sig_user' in kwargs:
             fb.session_key = kwargs['fb_sig_session_key']
             fb.uid = kwargs['fb_sig_user']
@@ -50,6 +49,9 @@ def fb_require_login(f):
             fb.uid = kwargs['x_sig_user']
         elif 'auth_token' in kwargs:
             fb.auth.getSession()
+        elif 'session_key' in cherrypy.session and 'uid' in cherrypy.session:
+            fb.session_key = cherrypy.session['session_key']
+            fb.uid = cherrypy.session['uid']
         else:
             return fb.redirect(fb.get_login_url())
 
@@ -81,9 +83,12 @@ class Exporter (object):
             self.formats[format.id] = format
 
     def render (self, page, context):
+        '''Render a template.'''
+
         base = os.path.join(os.path.dirname(__file__), 'templates', page)
         path = None
 
+        # Allow templates to be specified with or without extension.
         for p in [base, '%s.html' % base]:
             if os.path.exists(p):
                 path = p
@@ -98,18 +103,29 @@ class Exporter (object):
     @cherrypy.expose
     @fb_require_login
     def index(self, **kwargs):
+        '''Render the main canvas page.'''
+
         return self.render('index', {
             'formats': self.formats.values(),
             'fb': cherrypy.request.facebook,
             'baseurl': cherrypy.request.app.config['facebook']['base url'],
+            'message': kwargs.get('message'),
             })
+
+    def error(self, message):
+        '''Return the user to the canvas url and display the
+        given error message.'''
+
+        canvas_url = cherrypy.request.app.config['facebook']['canvas url']
+        raise cherrypy.HTTPRedirect('%s?message=%s' % (canvas_url, message))
 
     @cherrypy.expose
     @fb_require_login
     def export(self, **kwargs):
+        '''Generate the exported data.'''
+
         if not 'export' in kwargs:
-            return self.render('error', {
-                'message': 'You have not selected anything to export.'})
+            self.error('You have not selected anything to export.')
 
         # Make sure export is a list.
         if not hasattr(kwargs['export'], 'append'):
@@ -117,19 +133,18 @@ class Exporter (object):
 
         for x in kwargs['export']:
             if not hasattr(self, 'get_%s' % x):
-                return self.render('error', {
-                    'message': '''Don't know how to export %s.''' % x})
+                self.error('''Don't know how to export %s.''' % x)
 
         if not 'format' in kwargs:
-            return self.render('error', {
-                'message': 'You have not selected an export format.'})
+            self.error('You have not selected an export format.')
 
         if not kwargs['format'] in self.formats:
-            return self.render('error', {
-                'message': 'You have selected an invalid export format.'})
+            self.error('You have selected an invalid export format.')
 
         try:
             feed = []
+
+            # Extend feed with each object type selected by the user.
             for x in kwargs['export']:
                 f = getattr(self, 'get_%s' % x)
                 feed.extend(f())
@@ -138,6 +153,8 @@ class Exporter (object):
             fb = cherrypy.request.facebook
             user = fb.users.getInfo(fb.uid, 'name, first_name, last_name, profile_url')[0]
             cherrypy.response.headers['Content-Type'] = format.content_type
+
+            # Format the items in the feed, sorted by date created.
             return format.format(user,
                 sorted(feed, key=lambda x: x['created']))
         except urlfetch.DownloadError:
