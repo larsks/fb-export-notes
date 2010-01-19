@@ -1,14 +1,19 @@
-import baseformatter
+fields = [ 'type', 'id', 'title', 'created', 'updated', 'url', 'summary', 'content' ]
 
-class CSVFormatter (baseformatter.BaseFormatter):
+class CSVFormatter (object):
     id              = 'csv'
     name            = 'CSV (for Excel, etc)'
     content_type    = 'text/plain'
     extension       = '.csv'
 
     def format(self, user, feed):
-        yield(','.join(self.fields))
+        text = [','.join(fields)]
         for item in feed:
-            yield( ','.join(['"%s"' % str(x).replace('"', '""') for x in [
-                item.get(y,'') for y in self.fields]]))
+            line = []
+            for field in fields:
+                line.append(unicode(item.get(field, '')).encode('utf-8'))
+            text.append(','.join([
+                '"%s"' % x.replace('"', '""') for x in line]))
+
+        return '\n'.join(text)
 

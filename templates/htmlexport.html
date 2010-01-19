@@ -7,17 +7,24 @@
 	xml:lang="en">
 	<head>            
 		<title>Facebook Export for {{user.name}}</title>
+		<style type="text/css">
+			.item {
+				clear: both;
+			}
+		</style>
 	</head>
 	<body>
 		<h1>Facebook Export for {{user.name}}</h1>
 
 		{% for item in feed %}
 		<div class="item">
-			<h2>{{ item.title }}</h2>
+			<h2 class="title">{{ item.title }}</h2>
 			<table>
-				<tr><td>Type:</td><td>{{item.type}}</td></tr>
-				<tr><td>Created:</td><td>{{ item.created }}</td></tr>
-				{% if item.updated %}<tr><td>Updated:</td><td>{{ item.updated }}</td></tr>{% endif %}
+				<tr><td>Type:</td><td class="type">{{item.type}}</td></tr>
+				<tr><td>Created:</td><td class="created">{{ item.created }}</td></tr>
+				{% if item.updated %}
+				<tr><td>Updated:</td><td class="updated">{{ item.updated }}</td></tr>
+				{% endif %}
 				{% if item.url %}
 				<tr><td>Link:</td><td>
 						<a class="link" href="{{item.url}}">{{item.url}}</a>

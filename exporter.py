@@ -25,6 +25,7 @@ import wsgiref.handlers
 
 from google.appengine.ext.webapp import template
 from google.appengine.api import memcache
+from google.appengine.api import urlfetch
 sys.modules['memcache'] = memcache
 
 import csvformatter
@@ -58,7 +59,7 @@ def fb_require_login(f):
 
     return _
 
-class Exporter:
+class Exporter (object):
     _cp_config = {
             'tools.facebook.on'             : True,
             'tools.sessions.on'             : True,
@@ -127,17 +128,21 @@ class Exporter:
             return self.render('error', {
                 'message': 'You have selected an invalid export format.'})
 
-        feed = []
-        for x in kwargs['export']:
-            f = getattr(self, 'get_%s' % x)
-            feed.extend(f())
-        
-        format = self.formats[kwargs['format']]
-        fb = cherrypy.request.facebook
-        user = fb.users.getInfo(fb.uid, 'name, first_name, last_name, profile_url')[0]
-        cherrypy.response.headers['Content-Type'] = format.content_type
-        return '\n'.join(format.format(user,
-            sorted(feed, key=lambda x: x['created'])))
+        try:
+            feed = []
+            for x in kwargs['export']:
+                f = getattr(self, 'get_%s' % x)
+                feed.extend(f())
+            
+            format = self.formats[kwargs['format']]
+            fb = cherrypy.request.facebook
+            user = fb.users.getInfo(fb.uid, 'name, first_name, last_name, profile_url')[0]
+            cherrypy.response.headers['Content-Type'] = format.content_type
+            return format.format(user,
+                sorted(feed, key=lambda x: x['created']))
+        except urlfetch.DownloadError:
+            return self.render('error', { 'message':
+                'DownloadError: An operation time out; try reloading the page.'})
         
     def get_notes(self):
         fb = cherrypy.request.facebook
@@ -151,12 +156,12 @@ class Exporter:
             feed.append({
                 'type'      : 'note',
                 'id'        : note['note_id'],
-                'title'     : note['title'].encode('utf8'),
+                'title'     : note['title'],
                 'created'   :
                 datetime.datetime.fromtimestamp(int(note['created_time'])),
                 'updated'   :
                 datetime.datetime.fromtimestamp(int(note['updated_time'])),
-                'content'   : note['content'].encode('utf8'),
+                'content'   : note['content'],
                 })
 
         return feed
@@ -172,10 +177,10 @@ class Exporter:
             feed.append({
                 'type'      : 'status',
                 'id'        : status['status_id'],
-                'title'     : status['message'].encode('utf8'),
+                'title'     : status['message'],
                 'created'   :
                 datetime.datetime.fromtimestamp(int(status['time'])),
-                'content'   : status['message'].encode('utf8'),
+                'content'   : status['message'],
                 })
 
         return feed
@@ -192,17 +197,17 @@ class Exporter:
             feed.append({
                 'type'      : 'link',
                 'id'        : link['link_id'],
-                'title'     : link['title'].encode('utf8'),
+                'title'     : link['title'],
                 'created'   :
                 datetime.datetime.fromtimestamp(int(link['created_time'])),
-                'summary'   : link['summary'].encode('utf8'),
-                'content'   : link['owner_comment'] and link['owner_comment'].encode('utf8'),
-                'url'       : link['url'].encode('utf8'),
+                'summary'   : link['summary'],
+                'content'   : link['owner_comment'],
+                'url'       : link['url'],
                 })
 
         return feed
 
-class FacebookTool:
+class FacebookTool (object):
     '''This sets up a cherrypy.request.facebook for each incoming
     request.'''
 
