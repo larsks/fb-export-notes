@@ -6,21 +6,36 @@
 	xsi:schemaLocation="http://www.w3.org/MarkUp/SCHEMA/xhtml11.xsd"
 	xml:lang="en">
 	<head>            
-		<title>Facebook Export</title>
+		<title>Facebook Export for {{user.name}}</title>
 	</head>
 	<body>
-		<h1>Facebook Export</h1>
+		<h1>Facebook Export for {{user.name}}</h1>
 
 		{% for item in feed %}
-		<h2>{{ item.title }}</h2>
-		<table>
-			<tr><td>Type:</td><td>{{item.type}}</td></tr>
-			<tr><td>Created:</td><td>{{item.created}}</td></tr>
-			<tr><td>Updated:</td><td>{{item.updated}}</td></tr>
-		</table>
+		<div class="item">
+			<h2>{{ item.title }}</h2>
+			<table>
+				<tr><td>Type:</td><td>{{item.type}}</td></tr>
+				<tr><td>Created:</td><td>{{ item.created }}</td></tr>
+				{% if item.updated %}<tr><td>Updated:</td><td>{{ item.updated }}</td></tr>{% endif %}
+				{% if item.url %}
+				<tr><td>Link:</td><td>
+						<a class="link" href="{{item.url}}">{{item.url}}</a>
+				</td></tr>
+				{% endif %}
+			</table>
 
-		<div class="itemcontent">
-			{{item.content}}
+			{% if item.summary %}
+			<div class="summary">
+				{{item.summary}}
+			</div>
+			{% endif %}
+
+			{% if item.content %}
+			<div class="content">
+				{{item.content}}
+			</div>
+			{% endif %}
 		</div>
 		{% endfor %}
 	</body>

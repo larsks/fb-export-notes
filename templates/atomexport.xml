@@ -7,12 +7,15 @@
 
 	{% for entry in feed %}
 	<entry>
-		<id>{{entry.id}}</id>
-		<title type="text">{{entry.title}}</title>
-		<published>{{entry.created}}</published>
-		<updated>{{entry.updated}}</updated>
+		<id>http://fb-export.appspot.com/id/{{entry.type}}/{{entry.id}}</id>
+		<category term="{{entry.type}}"/>
+		<title>{{entry.title}}</title>
+		{% if entry.created %}<published>{{entry.created}}</published>{% endif %}
+		{% if entry.updated %}<updated>{{entry.updated}}</updated>{% endif %}
+		{% if entry.url %}<link href="{{entry.url}}" />{% endif %}
 		<author>{{user.name}}</author>
-		<content type="html">{{entry.content|escape}}</content>
+		{% if entry.summary %}<summary type="html">{{entry.summary}}</summary>{% endif %}
+		{% if entry.content %}<content type="html">{{entry.content}}</content>{% endif %}
 	</entry>
 	{% endfor %}
 </feed>

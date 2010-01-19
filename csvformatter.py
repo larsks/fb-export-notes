@@ -10,5 +10,5 @@ class CSVFormatter (baseformatter.BaseFormatter):
         yield(','.join(self.fields))
         for item in feed:
             yield( ','.join(['"%s"' % str(x).replace('"', '""') for x in [
-                item[y] for y in self.fields]]))
+                item.get(y,'') for y in self.fields]]))
 

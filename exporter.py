@@ -3,6 +3,7 @@
 import os
 import sys
 import time
+import datetime
 
 from xml.etree import ElementTree as ET
 
@@ -151,8 +152,10 @@ class Exporter:
                 'type'      : 'note',
                 'id'        : note['note_id'],
                 'title'     : note['title'].encode('utf8'),
-                'created'   : note['created_time'],
-                'updated'   : note['updated_time'],
+                'created'   :
+                datetime.datetime.fromtimestamp(int(note['created_time'])),
+                'updated'   :
+                datetime.datetime.fromtimestamp(int(note['updated_time'])),
                 'content'   : note['content'].encode('utf8'),
                 })
 
@@ -170,9 +173,31 @@ class Exporter:
                 'type'      : 'status',
                 'id'        : status['status_id'],
                 'title'     : status['message'].encode('utf8'),
-                'created'   : status['time'],
-                'updated'   : status['time'],
+                'created'   :
+                datetime.datetime.fromtimestamp(int(status['time'])),
                 'content'   : status['message'].encode('utf8'),
+                })
+
+        return feed
+
+    def get_links(self):
+        fb = cherrypy.request.facebook
+        links = fb.fql.query(
+                '''SELECT link_id, created_time, title, summary,
+                owner_comment, url
+                    FROM link WHERE owner=%s''' % fb.uid)
+
+        feed = []
+        for link in links:
+            feed.append({
+                'type'      : 'link',
+                'id'        : link['link_id'],
+                'title'     : link['title'].encode('utf8'),
+                'created'   :
+                datetime.datetime.fromtimestamp(int(link['created_time'])),
+                'summary'   : link['summary'].encode('utf8'),
+                'content'   : link['owner_comment'] and link['owner_comment'].encode('utf8'),
+                'url'       : link['url'].encode('utf8'),
                 })
 
         return feed
