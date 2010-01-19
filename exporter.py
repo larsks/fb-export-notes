@@ -58,6 +58,16 @@ def fb_require_login(f):
     return _
 
 class Exporter:
+    _cp_config = {
+            'tools.facebook.on'             : True,
+            'tools.sessions.on'             : True,
+            'tools.sessions.storage_type'   : 'memcached',
+            'tools.sessions.servers	'       : [ 'memcached://' ],
+            'tools.sessions.name'           : '_fb_exporter_id',
+            'tools.sessions.clean_thread'   : True,
+            'tools.sessions.timeout'        : 60,
+            }
+
     def __init__ (self):
         self.formats = {}
         

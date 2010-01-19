@@ -1,0 +1,8 @@
+# Fill in the appropriate values and rename this file to
+# app.ini.
+
+[facebook]
+api key		= 'your api key'
+secret key	= 'your secret key'
+base url	= 'url for your application'
+
