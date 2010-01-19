@@ -5,4 +5,5 @@
 api key		= 'your api key'
 secret key	= 'your secret key'
 base url	= 'url for your application'
+canvas url	= 'http://apps.facebook.com/your-app-name'
 
