@@ -1,24 +1,25 @@
-=====================
-Export Facebook Notes
-=====================
+=================
+Facebook Exporter
+=================
 
-:Author: Lars Kellogg-Stedman
+:Author: `Lars Kellogg-Stedman`_
 
-Installing
-==========
+Facebook Exporter is a Facebook_ application that allows you to export
+all[#] of the notes, status messages, and links that you have posted to
+Facebook.  You may want to do this for archival purposes or to move the
+content to another site or service.
 
-You need the PyFacebook library.  It's available as a submodule of this
-repository; just run the following commands::
+You can access the `application on Facebook`_ if you want to export your
+own data.
 
-  git submodule update --init
-  ln -s pyfacebook/facebook facebook
+The code for Facebook Exporter is available on our `Github site`_.  The
+code is written for use on `Google App Engine`_ (GAE); in order to provide your
+own version of the application you would need to create a GAE account and
+install the SDK on your development system.
 
-Running
-=======
-
-The script will output your notes to stdout.  The first time you run the
-script it should open a browser asking you to authenticate on Facebook.
-You may need to run the script a second time for it to actually work::
-
-  python fb-to-atom.py > mynotes.atom
+.. _lars kellogg-stedman: http://facebook.com/larsks
+.. _facebook: http://facebook.com/
+.. _application on facebook: http://apps.facebook.com/fb-export
+.. _github site: http://github.com/larsks/fb-export-notes
+.. _google app engine: http://appengine.google.com/
 
