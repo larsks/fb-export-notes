@@ -57,7 +57,6 @@ def main():
     print 'SECRET KEY:', FB_SECRET_KEY
 
     fb = facebook.Facebook(FB_API_KEY, FB_SECRET_KEY)
-    return fb
 
     if os.path.exists(CCACHE):
         auth = pickle.load(open(CCACHE))
@@ -67,6 +66,8 @@ def main():
     else:
         tok = fb.auth.createToken()
         fb.login()
+        print >>sys.stderr, 'Waiting...'
+        sys.stdin.readline()
         auth = fb.auth.getSession()
         pickle.dump(auth, open(CCACHE, 'w'))
 

@@ -28,6 +28,7 @@ sys.modules['memcache'] = memcache
 
 import csvformatter
 import htmlformatter
+import atomformatter
 
 NS_ATOM         = 'http://www.w3.org/2005/Atom'
 
@@ -57,6 +58,9 @@ def fb_require_login(f):
         elif 'fb_sig_session_key' in kwargs and 'fb_sig_user' in kwargs:
             fb.session_key = kwargs['fb_sig_session_key']
             fb.uid = kwargs['fb_sig_user']
+        elif 'x_sig_session_key' in kwargs and 'x_sig_user' in kwargs:
+            fb.session_key = kwargs['x_sig_session_key']
+            fb.uid = kwargs['x_sig_user']
         elif 'auth_token' in kwargs:
             fb.auth.getSession()
         else:
@@ -75,6 +79,7 @@ class Exporter:
         for format in [
                 csvformatter.CSVFormatter(),
                 htmlformatter.HTMLFormatter(),
+                atomformatter.AtomFormatter(),
                 ]:
             self.formats[format.id] = format
 
@@ -94,8 +99,13 @@ class Exporter:
         return template.render(path, context)
 
     @cherrypy.expose
+    @fb_require_login
     def index(self, **kwargs):
-        return self.render('index', {'formats': self.formats.values()})
+        return self.render('index', {
+            'formats': self.formats.values(),
+            'fb': cherrypy.request.facebook,
+            'baseurl': cherrypy.request.app.config['facebook']['base url'],
+            })
 
     @cherrypy.expose
     @fb_require_login
@@ -127,8 +137,11 @@ class Exporter:
             feed.extend(f())
         
         format = self.formats[kwargs['format']]
+        fb = cherrypy.request.facebook
+        user = fb.users.getInfo(fb.uid, 'name, first_name, last_name, profile_url')[0]
         cherrypy.response.headers['Content-Type'] = format.content_type
-        return '\n'.join(format.format(feed))
+        return '\n'.join(format.format(user,
+            sorted(feed, key=lambda x: x['created'])))
         
     def get_notes(self):
         fb = cherrypy.request.facebook
@@ -142,10 +155,29 @@ class Exporter:
             feed.append({
                 'type'      : 'note',
                 'id'        : note['note_id'],
-                'title'     : note['title'],
+                'title'     : note['title'].encode('utf8'),
                 'created'   : note['created_time'],
                 'updated'   : note['updated_time'],
-                'content'   : note['content'],
+                'content'   : note['content'].encode('utf8'),
+                })
+
+        return feed
+
+    def get_status(self):
+        fb = cherrypy.request.facebook
+        statuses = fb.fql.query(
+                '''SELECT status_id, time, message
+                    FROM status WHERE uid=%s''' % fb.uid)
+
+        feed = []
+        for status in statuses:
+            feed.append({
+                'type'      : 'status',
+                'id'        : status['status_id'],
+                'title'     : status['message'].encode('utf8'),
+                'created'   : status['time'],
+                'updated'   : status['time'],
+                'content'   : status['message'].encode('utf8'),
                 })
 
         return feed

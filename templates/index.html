@@ -2,7 +2,10 @@
 
 <p>This application lets you export notes and status messages from Facebook.</p>
 
-<form action="export">
+<form action="{{baseurl}}/export">
+	<input type="hidden" name="x_sig_user" value="{{fb.uid}}"/>
+	<input type="hidden" name="x_sig_session_key" value="{{fb.session_key}}"/>
+
 	<ul>
 		<li><input type="checkbox" name="export" value="notes" /> Export notes</li>
 		<li><input type="checkbox" name="export" value="status"/> Export status</li>

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf8" ?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+	<title type="text">Facebook export for {{user.name}}</title>
+	<author>
+		<name>{{user.name}}</name>
+	</author>
+
+	{% for entry in feed %}
+	<entry>
+		<id>{{entry.id}}</id>
+		<title type="text">{{entry.title}}</title>
+		<published>{{entry.created}}</published>
+		<updated>{{entry.updated}}</updated>
+		<author>{{user.name}}</author>
+		<content type="html">{{entry.content|escape}}</content>
+	</entry>
+	{% endfor %}
+</feed>
+
