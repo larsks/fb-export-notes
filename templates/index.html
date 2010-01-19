@@ -1,0 +1,19 @@
+<h1>Facebook Exporter</h1>
+
+<p>This application lets you export notes and status messages from Facebook.</p>
+
+<form action="export">
+	<ul>
+		<li><input type="checkbox" name="export" value="notes" /> Export notes</li>
+		<li><input type="checkbox" name="export" value="status"/> Export status</li>
+	</ul>
+
+	<p>Export format: <select name="format">
+		{% for format in formats %}
+		<option value="{{ format.id }}">{{ format.name }}</option>
+		{% endfor %}
+	</select></p>
+
+	<p><input type="submit" name="submit" value="Export"/></p>
+</form>
+

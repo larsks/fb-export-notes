@@ -22,11 +22,12 @@ import facebook
 import cherrypy
 import wsgiref.handlers
 
-try:
-    from google.appengine.api import memcache
-    sys.modules['memcache'] = memcache
-except ImportError:
-    pass
+from google.appengine.ext.webapp import template
+from google.appengine.api import memcache
+sys.modules['memcache'] = memcache
+
+import csvformatter
+import htmlformatter
 
 NS_ATOM         = 'http://www.w3.org/2005/Atom'
 
@@ -68,83 +69,86 @@ def fb_require_login(f):
     return _
 
 class Exporter:
-    @cherrypy.expose
-    @fb_require_login
-    def index(self, **kwargs):
-        text = ['<h1>Params</h1>']
+    def __init__ (self):
+        self.formats = {}
         
-        text.append('<table>')
-        for k,v in kwargs.items():
-            text.append('<tr><td>%s</td><td>%s</td></tr>' % (k,v))
-        text.append('</table>')
+        for format in [
+                csvformatter.CSVFormatter(),
+                htmlformatter.HTMLFormatter(),
+                ]:
+            self.formats[format.id] = format
 
-        fb = cherrypy.request.facebook
+    def render (self, page, context):
+        base = os.path.join(os.path.dirname(__file__), 'templates', page)
+        path = None
 
-        text.append('<p>api = %s</p>' % fb.api_key)
-        text.append('<p>secret = %s</p>' % fb.secret_key)
-        text.append('<p>fb user = %s</p>' % fb.uid)
-        text.append('<p>fb session_key = %s</p>' % fb.session_key)
+        for p in [base, '%s.html' % base]:
+            if os.path.exists(p):
+                path = p
+                break
 
-        try:
-            user = fb.users.getLoggedInUser()
-            text.append('<p>user info: %s</p>' % user)
-        except facebook.FacebookError, detail:
-            text.append('<p>api call failed: %s</p>' % detail)
+        if not path:
+            raise cherrypy.HTTPError('500',
+                    'Unable to find requested template (%s).' % page)
 
-        info = fb.users.getInfo(fb.uid)
-
-        text.append('<h1>User info</h1>')
-        for d in info:
-            text.append('<h2>%s</h2>' % d['name'])
-            text.append('<table>')
-            for k,v in d.items():
-                text.append('<tr><td>%s</td><td>%s</td></tr>' % (k,v))
-            text.append('</table>')
-
-        text.append('<p>session id: %s</p>' % cherrypy.session.id)
-
-        text.append('''<a href="%s/notes_xml?fb_sig_user=%s&fb_sig_session_key=%s"
-            >Notes (Atom feed)</a>''' % (
-                cherrypy.request.app.config['facebook']['base url'],
-                fb.uid,
-                fb.session_key))
-            
-        text.append('''<a href="%s/status_xml?fb_sig_user=%s&fb_sig_session_key=%s"
-            >Status (Atom feed)</a>''' % (
-                cherrypy.request.app.config['facebook']['base url'],
-                fb.uid,
-                fb.session_key))
-            
-        return '\n'.join(text)
+        return template.render(path, context)
 
     @cherrypy.expose
-    def session_info(self, **kwargs):
-        text = ['<h1>Session</h1>']
-
-        text.append('<p>session id: %s</p>' % cherrypy.session.id)
-        text.append('<table>')
-        for k,v in cherrypy.session.items():
-            text.append('<tr><td>%s</td><td>%s</td></tr>' % (k,v))
-        text.append('</table>')
-
-        return '\n'.join(text)
+    def index(self, **kwargs):
+        return self.render('index', {'formats': self.formats.values()})
 
     @cherrypy.expose
     @fb_require_login
-    def notes(self, **kwargs):
+    def export(self, **kwargs):
+        if not 'export' in kwargs:
+            return self.render('error', {
+                'message': 'You have not selected anything to export.'})
+
+        # Make sure export is a list.
+        if not hasattr(kwargs['export'], 'append'):
+            kwargs['export'] = [ kwargs['export'] ]
+
+        for x in kwargs['export']:
+            if not hasattr(self, 'get_%s' % x):
+                return self.render('error', {
+                    'message': '''Don't know how to export %s.''' % x})
+
+        if not 'format' in kwargs:
+            return self.render('error', {
+                'message': 'You have not selected an export format.'})
+
+        if not kwargs['format'] in self.formats:
+            return self.render('error', {
+                'message': 'You have selected an invalid export format.'})
+
+        feed = []
+        for x in kwargs['export']:
+            f = getattr(self, 'get_%s' % x)
+            feed.extend(f())
+        
+        format = self.formats[kwargs['format']]
+        cherrypy.response.headers['Content-Type'] = format.content_type
+        return '\n'.join(format.format(feed))
+        
+    def get_notes(self):
         fb = cherrypy.request.facebook
         notes = fb.fql.query(
                 '''SELECT note_id, created_time,
                     updated_time, title, content
                     FROM note WHERE uid=%s''' % fb.uid)
 
-        text = [ '<h1>Notes</h1>' ]
-        text.append('<table>')
+        feed = []
         for note in notes:
-            text.append('<tr><td>%(note_id)s</td><td>%(title)s</td></tr>' % note)
-        text.append('</table>')
+            feed.append({
+                'type'      : 'note',
+                'id'        : note['note_id'],
+                'title'     : note['title'],
+                'created'   : note['created_time'],
+                'updated'   : note['updated_time'],
+                'content'   : note['content'],
+                })
 
-        return '\n'.join(text)
+        return feed
 
     @cherrypy.expose
     @fb_require_login

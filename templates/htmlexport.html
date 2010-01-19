@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.w3.org/MarkUp/SCHEMA/xhtml11.xsd"
+	xml:lang="en">
+	<head>            
+		<title>Facebook Export</title>
+	</head>
+	<body>
+		<h1>Facebook Export</h1>
+
+		{% for item in feed %}
+		<h2>{{ item.title }}</h2>
+		<table>
+			<tr><td>Type:</td><td>{{item.type}}</td></tr>
+			<tr><td>Created:</td><td>{{item.created}}</td></tr>
+			<tr><td>Updated:</td><td>{{item.updated}}</td></tr>
+		</table>
+
+		<div class="itemcontent">
+			{{item.content}}
+		</div>
+		{% endfor %}
+	</body>
+</html>
+
