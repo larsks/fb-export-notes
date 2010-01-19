@@ -6,7 +6,7 @@ class HTMLFormatter (object):
     id              = 'html'
     name            = 'HTML (good for display)'
     content_type    = 'text/html'
-    extension       = '.html'
+    extension       = 'html'
 
     def format(self, user, feed):
         path = os.path.join(os.path.dirname(__file__), 'templates',

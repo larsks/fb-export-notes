@@ -1,0 +1,16 @@
+<h1>Facebook Exporter</h1>
+
+<p>Select one or more of the following links to download your data:</p>
+
+<ul>
+{% for format in formats %}
+<li><a
+	href="{{config.base_url}}/export/{{fb.uid}}/{{fb.session_key}}/{{format.id}}/facebook_data.{{format.extension}}"
+	>{{format.name}}</a></li>
+{% endfor %}
+</ul>
+
+<hr/>
+<p>If you encounter any problems with this application, please report them
+on <a href="http://github.com/larsks/fb-export-notes/issues">the project site</a>.</p>
+

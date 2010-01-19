@@ -4,7 +4,7 @@ class CSVFormatter (object):
     id              = 'csv'
     name            = 'CSV (for Excel, etc)'
     content_type    = 'text/plain'
-    extension       = '.csv'
+    extension       = 'csv'
 
     def format(self, user, feed):
         text = [','.join(fields)]

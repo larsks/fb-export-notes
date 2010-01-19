@@ -40,11 +40,18 @@ import wsgiref.handlers
 from google.appengine.ext.webapp import template
 from google.appengine.api import memcache
 from google.appengine.api import urlfetch
+from google.appengine.ext import db
 sys.modules['memcache'] = memcache
 
 import csvformatter
 import htmlformatter
 import atomformatter
+
+class User (db.Model):
+    session_key = db.StringProperty(required=True)
+    uid = db.IntegerProperty(required=True)
+    when = db.DateTimeProperty(required=True)
+    selected = db.StringListProperty()
 
 def fb_require_login(f):
     '''Decorator for functions that require a valid Facebook session to
@@ -122,7 +129,7 @@ class Exporter (object):
         return self.render('index', {
             'formats': self.formats.values(),
             'fb': cherrypy.request.facebook,
-            'baseurl': cherrypy.request.app.config['facebook']['base url'],
+            'config': cherrypy.request.app.config['facebook'],
             'message': kwargs.get('message'),
             })
 
@@ -130,13 +137,21 @@ class Exporter (object):
         '''Return the user to the canvas url and display the
         given error message.'''
 
-        canvas_url = cherrypy.request.app.config['facebook']['canvas url']
-        raise cherrypy.HTTPRedirect('%s?message=%s' % (canvas_url, message))
+        canvas_url = cherrypy.request.app.config['facebook']['canvas_url']
+        return cherrypy.request.facebook.redirect('%s?message=%s' % (canvas_url, message))
+
+    @cherrypy.expose
+    def export2(self, uid, session_key, output_file):
+        fb = cherrypy.request.facebook
+        fb.uid = uid
+        fb.session_key = session_key
+        user = fb.users.getInfo(fb.uid)[0]
+        return 'Export data for %s to %s.' % (user['name'], output_file)
 
     @cherrypy.expose
     @fb_require_login
-    def export(self, **kwargs):
-        '''Generate the exported data.'''
+    def prepare(self, **kwargs):
+        fb = cherrypy.request.facebook
 
         if not 'export' in kwargs:
             self.error('You have not selected anything to export.')
@@ -145,26 +160,47 @@ class Exporter (object):
         if not hasattr(kwargs['export'], 'append'):
             kwargs['export'] = [ kwargs['export'] ]
 
-        for x in kwargs['export']:
-            if not hasattr(self, 'get_%s' % x):
-                self.error('''Don't know how to export %s.''' % x)
+        u = User(
+                uid = int(fb.uid),
+                session_key = fb.session_key,
+                when = datetime.datetime.now(),
+                selected = kwargs['export'],
+                )
 
-        if not 'format' in kwargs:
-            self.error('You have not selected an export format.')
+        u.put()
 
-        if not kwargs['format'] in self.formats:
-            self.error('You have selected an invalid export format.')
+        return self.render('prepare', {
+            'formats': self.formats.values(),
+            'fb': cherrypy.request.facebook,
+            'config': cherrypy.request.app.config['facebook'],
+            })
+
+    @cherrypy.expose
+    def export(self, uid, session_key, format, output_file):
+        '''Generate the exported data.'''
+
+        fb = cherrypy.request.facebook
+        fb.uid = uid
+        fb.session_key = session_key
+
+        query = db.Query(User)
+        query.filter('session_key =', session_key)
+        results = query.fetch(1)
+
+        if not results:
+            self.error('You have not selected anything to export.')
+
+        result = results[0]
 
         try:
             feed = []
 
             # Extend feed with each object type selected by the user.
-            for x in kwargs['export']:
+            for x in result.selected:
                 f = getattr(self, 'get_%s' % x)
                 feed.extend(f())
             
-            format = self.formats[kwargs['format']]
-            fb = cherrypy.request.facebook
+            format = self.formats[format]
             user = fb.users.getInfo(fb.uid, 'name, first_name, last_name, profile_url')[0]
             cherrypy.response.headers['Content-Type'] = format.content_type
 
@@ -244,8 +280,8 @@ class FacebookTool (object):
 
     def __call__(self):
         cherrypy.request.facebook = facebook.Facebook(
-                cherrypy.request.app.config['facebook']['api key'],
-                cherrypy.request.app.config['facebook']['secret key'])
+                cherrypy.request.app.config['facebook']['api_key'],
+                cherrypy.request.app.config['facebook']['secret_key'])
 
         cherrypy.request.facebook.redirect = self.redirect
 

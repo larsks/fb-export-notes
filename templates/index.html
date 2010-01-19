@@ -11,6 +11,10 @@
 <p>Due to limitations of the Facebook platform you will not be able to access data from before
 July 2008.</p>
 
+<p>This project is hosted on Google App Engine.  Occasionally, possibly due to
+strict timeouts, an attempt to export your data will fail with a "DownloadError" 
+message.  In general the error will go away if you reload the page.</p>
+
 <h2>Export</h2>
 
 {% if message %}
@@ -20,7 +24,7 @@ July 2008.</p>
 </fb:error>
 {% endif %}
 
-<form action="{{baseurl}}/export">
+<form action="prepare">
 	<input type="hidden" name="x_sig_user" value="{{fb.uid}}"/>
 	<input type="hidden" name="x_sig_session_key" value="{{fb.session_key}}"/>
 
@@ -30,23 +34,10 @@ July 2008.</p>
 		<li><input type="checkbox" name="export" value="links"/> Export links</li>
 	</ul>
 
-	<p>Export format: <select name="format">
-		{% for format in formats %}
-		<option value="{{ format.id }}">{{ format.name }}</option>
-		{% endfor %}
-	</select></p>
-
 	<p><input type="submit" name="submit" value="Export"/></p>
-
-	<fb:explanation>
-		<fb:message>Note regarding "DownloadError" messages</fb:message>
-
-		This project is hosted on Google App Engine.  Occasionally, possibly due to
-		strict timeouts, an attempt to export your data will fail with a "DownloadError" 
-		message.  In general the error will go away if you reload the page.
-	</fb:explanation>
-
-	<p>If you encounter any problems with this application, please report them
-	on <a href="http://github.com/larsks/fb-export-notes/issues">the project site</a>.</p>
 </form>
+
+<hr/>
+<p>If you encounter any problems with this application, please report them
+on <a href="http://github.com/larsks/fb-export-notes/issues">the project site</a>.</p>
 
