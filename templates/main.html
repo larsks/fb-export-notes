@@ -26,7 +26,7 @@ message.  In general the error will go away if you reload the page.</p>
 </fb:error>
 {% endif %}
 
-<form action="prepare">
+<form action="prepare" method="post">
 	<input type="hidden" name="x_sig_user" value="{{fb.uid}}"/>
 	<input type="hidden" name="x_sig_session_key" value="{{fb.session_key}}"/>
 

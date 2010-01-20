@@ -134,6 +134,15 @@ class Exporter (object):
             'message': kwargs.get('message'),
             })
 
+    @cherrypy.expose
+    def help(self, **kwargs):
+        '''Render the help page.'''
+
+        return self.render('help', {
+            'fb': cherrypy.request.facebook,
+            'config': cherrypy.request.app.config['facebook'],
+            })
+
     def error(self, message):
         '''Return the user to the canvas url and display the
         given error message.'''
