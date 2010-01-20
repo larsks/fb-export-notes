@@ -173,7 +173,7 @@ class Exporter (object):
             return self.error('You have not selected anything to export.')
 
         fbuser = fb.users.getInfo(fb.uid, 'name, first_name, last_name, profile_url')[0]
-        u = User(
+        user = User(
                 key_name = 'uid=%s' % fb.uid,
                 uid = int(fb.uid),
                 name = fbuser['name'],
@@ -182,7 +182,7 @@ class Exporter (object):
                 selected = selected,
                 )
 
-        u.put()
+        user.put()
 
         return self.render('prepare', {
             'formats': self.formats.values(),

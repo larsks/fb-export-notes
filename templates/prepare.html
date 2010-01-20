@@ -1,6 +1,14 @@
 {% extends "layout.html" %}
 
 {% block content %}
+<p>You have chosen to export the following data:</p>
+
+<ul>
+	{% for item in user.selected %}
+	<li><strong>{{item}}</strong></li>
+	{% endfor %}
+</ul>
+
 <p>The following links provide access to your data in various formats:</p>
 
 <ul>
