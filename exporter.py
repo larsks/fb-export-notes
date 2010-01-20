@@ -70,14 +70,9 @@ def fb_require_login(f):
             fb.uid = kwargs['x_sig_user']
         elif 'auth_token' in kwargs:
             fb.auth.getSession()
-        elif 'session_key' in cherrypy.session and 'uid' in cherrypy.session:
-            fb.session_key = cherrypy.session['session_key']
-            fb.uid = cherrypy.session['uid']
         else:
             return fb.redirect(fb.get_login_url())
 
-        cherrypy.session['session_key'] = fb.session_key
-        cherrypy.session['uid'] = fb.uid
         return f(self, *args, **kwargs)
 
     return _
@@ -154,13 +149,14 @@ class Exporter (object):
         fb = cherrypy.request.facebook
 
         if not 'export' in kwargs:
-            self.error('You have not selected anything to export.')
+            return self.error('You have not selected anything to export.')
 
         # Make sure export is a list.
         if not hasattr(kwargs['export'], 'append'):
             kwargs['export'] = [ kwargs['export'] ]
 
         u = User(
+                key_name = fb.session_key,
                 uid = int(fb.uid),
                 session_key = fb.session_key,
                 when = datetime.datetime.now(),
@@ -188,7 +184,7 @@ class Exporter (object):
         results = query.fetch(1)
 
         if not results:
-            self.error('You have not selected anything to export.')
+            return self.error('You have not selected anything to export.')
 
         result = results[0]
 

@@ -1,6 +1,8 @@
 <h1>Facebook Exporter</h1>
 
-<p>Select one or more of the following links to download your data:</p>
+<p><a href="{{config.canvas_url}}">Return to main screen</a></p>
+
+<p>The following links provide access to your data in various formats:</p>
 
 <ul>
 {% for format in formats %}
@@ -9,6 +11,10 @@
 	>{{format.name}}</a></li>
 {% endfor %}
 </ul>
+
+<p>Click on a link to display it in your browser, or use your browser to save
+the link to disk (e.g., right-click on the link and select, "Save Link As..."
+in Firefox).</p>
 
 <hr/>
 <p>If you encounter any problems with this application, please report them
