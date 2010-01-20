@@ -1,7 +1,6 @@
-<h1>Facebook Exporter</h1>
+{% extends "layout.html" %}
 
-<p><a href="{{config.canvas_url}}">Return to main screen</a></p>
-
+{% block content %}
 <p>The following links provide access to your data in various formats:</p>
 
 <ul>
@@ -15,8 +14,5 @@
 <p>Click on a link to display it in your browser, or use your browser to save
 the link to disk (e.g., right-click on the link and select, "Save Link As..."
 in Firefox).</p>
-
-<hr/>
-<p>If you encounter any problems with this application, please report them
-on <a href="http://github.com/larsks/fb-export-notes/issues">the project site</a>.</p>
+{% endblock %}
 

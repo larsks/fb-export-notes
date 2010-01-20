@@ -120,9 +120,14 @@ class Exporter (object):
     @cherrypy.expose
     @fb_require_login
     def index(self, **kwargs):
+        return self.main(**kwargs)
+
+    @cherrypy.expose
+    @fb_require_login
+    def main(self, **kwargs):
         '''Render the main canvas page.'''
 
-        return self.render('index', {
+        return self.render('main', {
             'formats': self.formats.values(),
             'fb': cherrypy.request.facebook,
             'config': cherrypy.request.app.config['facebook'],

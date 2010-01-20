@@ -1,6 +1,8 @@
-<h1>Facebook Exporter</h1>
+{% extends "layout.html" %}
 
-<p>This application lets you export notes, status messages, and links from Facebook.</p>
+{% block content %}
+<p>This application lets you export notes, status messages, and links from
+Facebook.</p>
 
 <h2>Author</h2>
 
@@ -37,7 +39,5 @@ message.  In general the error will go away if you reload the page.</p>
 	<p><input type="submit" name="submit" value="Export"/></p>
 </form>
 
-<hr/>
-<p>If you encounter any problems with this application, please report them
-on <a href="http://github.com/larsks/fb-export-notes/issues">the project site</a>.</p>
+{% endblock %}
 
