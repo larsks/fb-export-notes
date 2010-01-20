@@ -47,6 +47,8 @@ import csvformatter
 import htmlformatter
 import atomformatter
 
+template.register_template_library('filters')
+
 class User (db.Model):
     session_key = db.StringProperty(required=True)
     uid = db.IntegerProperty(required=True)
@@ -127,11 +129,15 @@ class Exporter (object):
     def main(self, **kwargs):
         '''Render the main canvas page.'''
 
+        user = User.get_by_key_name('uid=%s' %
+                cherrypy.request.facebook.uid)
+
         return self.render('main', {
             'formats': self.formats.values(),
             'fb': cherrypy.request.facebook,
             'config': cherrypy.request.app.config['facebook'],
             'message': kwargs.get('message'),
+            'user': user,
             })
 
     @cherrypy.expose
@@ -154,22 +160,26 @@ class Exporter (object):
     @fb_require_login
     def prepare(self, **kwargs):
         fb = cherrypy.request.facebook
+        user = User.get_by_key_name('uid=%s' % fb.uid)
 
-        if not 'export' in kwargs:
+        if 'export' in kwargs:
+            selected = kwargs['export']
+        elif user:
+            selected = user.selected
+        else:
+            selected = None
+
+        if not selected:
             return self.error('You have not selected anything to export.')
 
-        # Make sure export is a list.
-        if not hasattr(kwargs['export'], 'append'):
-            kwargs['export'] = [ kwargs['export'] ]
-
-        user = fb.users.getInfo(fb.uid, 'name, first_name, last_name, profile_url')[0]
+        fbuser = fb.users.getInfo(fb.uid, 'name, first_name, last_name, profile_url')[0]
         u = User(
-                key_name = fb.session_key,
+                key_name = 'uid=%s' % fb.uid,
                 uid = int(fb.uid),
-                name = user['name'],
+                name = fbuser['name'],
                 session_key = fb.session_key,
                 when = datetime.datetime.now(),
-                selected = kwargs['export'],
+                selected = selected,
                 )
 
         u.put()
@@ -178,19 +188,20 @@ class Exporter (object):
             'formats': self.formats.values(),
             'fb': cherrypy.request.facebook,
             'config': cherrypy.request.app.config['facebook'],
+            'user': user,
             })
 
     @cherrypy.expose
-    def export(self, uid, session_key, format, output_file):
+    def export(self, uid, format, output_file):
         '''Generate the exported data.'''
 
         fb = cherrypy.request.facebook
-        fb.uid = uid
-        fb.session_key = session_key
-
-        user = User.get_by_key_name(session_key)
+        user = User.get_by_key_name('uid=%s' % uid)
         if user is None:
             return self.error('You have not selected anything to export.')
+
+        fb.uid = uid
+        fb.session_key = user.session_key
 
         try:
             feed = []
@@ -201,11 +212,11 @@ class Exporter (object):
                 feed.extend(f())
             
             format = self.formats[format]
-            user = fb.users.getInfo(fb.uid, 'name, first_name, last_name, profile_url')[0]
+            fbuser = fb.users.getInfo(fb.uid, 'name, first_name, last_name, profile_url')[0]
             cherrypy.response.headers['Content-Type'] = format.content_type
 
             # Format the items in the feed, sorted by date created.
-            return format.format(user,
+            return format.format(fbuser,
                 sorted(feed, key=lambda x: x['created']))
         except urlfetch.DownloadError:
             return self.render('error', { 'message':
