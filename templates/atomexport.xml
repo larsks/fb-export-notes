@@ -1,22 +1,36 @@
 <?xml version="1.0" encoding="utf8" ?>
 <feed xmlns="http://www.w3.org/2005/Atom">
+	<id>http://fb-export.appspot.com/id/uid/{{user.uid}}</id>
 	<title type="text">Facebook export for {{user.name}}</title>
 	<author>
 		<name>{{user.name}}</name>
 	</author>
 	<generator uri="http://github.com/larsks/fb-export-notes">Facebook Exporter</generator>
+	<updated>{% now "Y-m-d\TH:M:SZ" %}</updated>
 
 	{% for entry in feed %}
 	<entry>
 		<id>http://fb-export.appspot.com/id/{{entry.type}}/{{entry.id}}</id>
-		<category term="{{entry.type}}"/>
-		<title>{{entry.title}}</title>
-		{% if entry.created %}<published>{{entry.created}}</published>{% endif %}
-		{% if entry.updated %}<updated>{{entry.updated}}</updated>{% endif %}
-		{% if entry.url %}<link href="{{entry.url}}" />{% endif %}
+		<category scheme='http://schemas.google.com/g/2005#kind'
+			term='http://schemas.google.com/blogger/2008/kind#post' />
+
+		{% if entry.created %}
+		<published>{{entry.created|strftime:"%Y-%m-%dT%H:%M:%SZ"}}</published>
+		{% endif %}
+		{% if entry.updated %}
+		<updated>{{entry.updated|strftime:"%Y-%m-%dT%H:%M:%SZ"}}</updated>
+		{% endif %}
+		{% if entry.url %}
+		<link href="{{entry.url}}" />
+		{% endif %}
 		<author>{{user.name}}</author>
-		{% if entry.summary %}<summary type="html">{{entry.summary}}</summary>{% endif %}
-		{% if entry.content %}<content type="html">{{entry.content}}</content>{% endif %}
+		<title type="text">{{entry.title}}</title>
+		{% if entry.summary %}
+		<summary type="html">{{entry.summary}}</summary>
+		{% endif %}
+		{% if entry.content %}
+		<content type="html">{{entry.content}}</content>
+		{% endif %}
 	</entry>
 	{% endfor %}
 </feed>
