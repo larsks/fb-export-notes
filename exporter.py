@@ -174,20 +174,15 @@ class Exporter (object):
         fb.uid = uid
         fb.session_key = session_key
 
-        query = db.Query(User)
-        query.filter('session_key =', session_key)
-        results = query.fetch(1)
-
-        if not results:
+        user = User.get_by_key_name(session_key)
+        if user is None:
             return self.error('You have not selected anything to export.')
-
-        result = results[0]
 
         try:
             feed = []
 
             # Extend feed with each object type selected by the user.
-            for x in result.selected:
+            for x in user.selected:
                 f = getattr(self, 'get_%s' % x)
                 feed.extend(f())
             
