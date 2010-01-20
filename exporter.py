@@ -50,6 +50,7 @@ import atomformatter
 class User (db.Model):
     session_key = db.StringProperty(required=True)
     uid = db.IntegerProperty(required=True)
+    name = db.StringProperty()
     when = db.DateTimeProperty(required=True)
     selected = db.StringListProperty()
 
@@ -136,14 +137,6 @@ class Exporter (object):
         return cherrypy.request.facebook.redirect('%s?message=%s' % (canvas_url, message))
 
     @cherrypy.expose
-    def export2(self, uid, session_key, output_file):
-        fb = cherrypy.request.facebook
-        fb.uid = uid
-        fb.session_key = session_key
-        user = fb.users.getInfo(fb.uid)[0]
-        return 'Export data for %s to %s.' % (user['name'], output_file)
-
-    @cherrypy.expose
     @fb_require_login
     def prepare(self, **kwargs):
         fb = cherrypy.request.facebook
@@ -155,9 +148,11 @@ class Exporter (object):
         if not hasattr(kwargs['export'], 'append'):
             kwargs['export'] = [ kwargs['export'] ]
 
+        user = fb.users.getInfo(fb.uid, 'name, first_name, last_name, profile_url')[0]
         u = User(
                 key_name = fb.session_key,
                 uid = int(fb.uid),
+                name = user['name'],
                 session_key = fb.session_key,
                 when = datetime.datetime.now(),
                 selected = kwargs['export'],
