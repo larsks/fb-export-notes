@@ -5,33 +5,8 @@ import sys
 import time
 import datetime
 
-from xml.etree import ElementTree as ET
-
-######################################################################
-#
-# BEGIN VIRTUALENV IMPORT
-#
-# This mess of code gets us packages installed into a virtualenv
-# using easy_install.
-#
-
-HERE = os.path.dirname(__file__)
-LIBDIR = 'runtime/lib/python2.5'
-SITEDIR = os.path.join(HERE, LIBDIR, 'site-packages')
-
-# This was mostly extracted by site.py.
-for line in open(os.path.join(SITEDIR, 'easy-install.pth')):
-    if line.startswith("import"):
-        exec line
-    elif line.startswith('#'):
-        pass
-    else:
-        sys.path.append(os.path.join(SITEDIR, line.strip()))
-
-#
-# END VIRTUALENV IMPORT
-#
-######################################################################
+# Set up virtualenv access.
+import virtualenv
 
 import facebook
 import cherrypy
@@ -47,6 +22,7 @@ import csvformatter
 import htmlformatter
 import atomformatter
 
+# register custom django template filters.
 template.register_template_library('filters')
 
 class User (db.Model):
