@@ -55,6 +55,7 @@ class User (db.Model):
     name = db.StringProperty()
     when = db.DateTimeProperty(required=True)
     selected = db.StringListProperty()
+    options = db.StringListProperty()
 
 def fb_require_login(f):
     '''Decorator for functions that require a valid Facebook session to
@@ -172,6 +173,10 @@ class Exporter (object):
         if not selected:
             return self.error('You have not selected anything to export.')
 
+        options = set()
+        if 'dedupe' in kwargs:
+            options.add('dedupe')
+
         fbuser = fb.users.getInfo(fb.uid, 'name, first_name, last_name, profile_url')[0]
         user = User(
                 key_name = 'uid=%s' % fb.uid,
@@ -180,6 +185,7 @@ class Exporter (object):
                 session_key = fb.session_key,
                 when = datetime.datetime.now(),
                 selected = selected,
+                options = list(options),
                 )
 
         user.put()
@@ -203,13 +209,15 @@ class Exporter (object):
         fb.uid = uid
         fb.session_key = user.session_key
 
+        dedupe = 'dedupe' in user.options
+
         try:
             feed = []
 
             # Extend feed with each object type selected by the user.
             for x in user.selected:
                 f = getattr(self, 'get_%s' % x)
-                feed.extend(f())
+                feed.extend(f(dedupe=dedupe))
             
             format = self.formats[format]
             fbuser = fb.users.getInfo(fb.uid, 'name, first_name, last_name, profile_url')[0]
@@ -222,15 +230,23 @@ class Exporter (object):
             return self.render('error', { 'message':
                 'DownloadError: An operation time out; try reloading the page.'})
         
-    def get_notes(self):
+    def get_notes(self, dedupe=False):
         fb = cherrypy.request.facebook
         notes = fb.fql.query(
                 '''SELECT note_id, created_time,
                     updated_time, title, content
-                    FROM note WHERE uid=%s''' % fb.uid)
+                    FROM note WHERE uid=%s
+                    ORDER BY created_time DESC''' % fb.uid)
 
         feed = []
+        last_title = None
+
         for note in notes:
+            if dedupe and note['title'] == last_title:
+                continue
+
+            last_title = note['title']
+
             feed.append({
                 'type'      : 'note',
                 'id'        : note['note_id'],
@@ -244,11 +260,14 @@ class Exporter (object):
 
         return feed
 
-    def get_status(self):
+    def get_status(self, dedupe=False):
+        '''Extract status updates.'''
+
         fb = cherrypy.request.facebook
         statuses = fb.fql.query(
                 '''SELECT status_id, time, message
-                    FROM status WHERE uid=%s''' % fb.uid)
+                    FROM status WHERE uid=%s
+                    ORDER BY time DESC''' % fb.uid)
 
         feed = []
         for status in statuses:
@@ -263,15 +282,32 @@ class Exporter (object):
 
         return feed
 
-    def get_links(self):
+    def get_links(self, dedupe=False):
         fb = cherrypy.request.facebook
         links = fb.fql.query(
                 '''SELECT link_id, created_time, title, summary,
                 owner_comment, url
-                    FROM link WHERE owner=%s''' % fb.uid)
+                FROM link WHERE owner=%s
+                ORDER BY created_time DESC''' % fb.uid)
 
         feed = []
+        last_title = None
+
         for link in links:
+            if dedupe and link['title'] == last_title:
+                continue
+
+            last_title = link['title']
+            content = ['<p><a href="%(url)s">%(title)s</a></p>' % link]
+
+            if link.get('summary'):
+                content.append('<blockquote>%(summary)s</blockquote>'
+                        % link)
+
+            if link.get('owner_comment'):
+                content.append('<p>%(owner_comment)s</p>'
+                        % link)
+
             feed.append({
                 'type'      : 'link',
                 'id'        : link['link_id'],
@@ -279,7 +315,7 @@ class Exporter (object):
                 'created'   :
                 datetime.datetime.fromtimestamp(int(link['created_time'])),
                 'summary'   : link['summary'],
-                'content'   : link['owner_comment'],
+                'content'   : '\n'.join(content),
                 'url'       : link['url'],
                 })
 

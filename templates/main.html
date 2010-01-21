@@ -30,6 +30,10 @@ message.  In general the error will go away if you reload the page.</p>
 	<input type="hidden" name="x_sig_user" value="{{fb.uid}}"/>
 	<input type="hidden" name="x_sig_session_key" value="{{fb.session_key}}"/>
 
+	<h3>What would you like to export?</h3>
+
+	<p>Select which items you would like to export from Facebook.</p>
+
 	<ul>
 		<li><input type="checkbox" name="export" value="notes"
 		{% if user.selected|contains:"notes" %}checked="1"{% endif %}/> Export notes</li>
@@ -39,6 +43,18 @@ message.  In general the error will go away if you reload the page.</p>
 
 		<li><input type="checkbox" name="export" value="links"
 		{% if user.selected|contains:"links" %}checked="1"{% endif %}/> Export links</li>
+	</ul>
+
+	</h3>Options</h3>
+
+	<ul>
+		<li><p><input type="checkbox" name="dedupe"
+		{% if user.options|contains:"dedupe" %}checked="1"{% endif %}/> Filter duplicates by title</p>
+		<p>When you edit items in Facebook you may end up with both the old and
+		new version in your export.  Selecting this option will suppress duplicates
+		by filtering out items if they are of the same type and have the same
+		title as the previous item.</p>
+		</li>
 	</ul>
 
 	<p><input type="submit" name="submit" value="Export"/></p>

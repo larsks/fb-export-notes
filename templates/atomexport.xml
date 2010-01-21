@@ -1,43 +1,40 @@
-<?xml version="1.0" encoding="utf8" ?>
-<feed xmlns="http://www.w3.org/2005/Atom">
+<?xml-stylesheet href="http://www.blogger.com/styles/atom.css" type="text/css"?>
+<feed
+	xmlns="http://www.w3.org/2005/Atom"
+	xmlns:openSearch="http://a9.com/-/spec/opensearchrss/1.0/"
+	xmlns:gd="http://schemas.google.com/g/2005"
+	xmlns:thr="http://purl.org/syndication/thread/1.0">
+
 	<id>http://fb-export.appspot.com/id/uid/{{user.uid}}</id>
+	<updated>{% now "Y-m-d\TH:i:s\Z" %}</updated>
 	<title type="text">Facebook export for {{user.name}}</title>
 	<author>
 		<name>{{user.name}}</name>
 	</author>
-	<generator uri="http://github.com/larsks/fb-export-notes">Facebook Exporter</generator>
-	<updated>{% now "Y-m-d\TH:M:SZ" %}</updated>
+	<generator version="7.00"
+		uri="http://www.blogger.com">Blogger</generator>
 
 	{% for entry in feed %}
 	<entry>
 		<id>http://fb-export.appspot.com/id/{{entry.type}}/{{entry.id}}</id>
-		<category scheme='http://schemas.google.com/g/2005#kind'
-			term='http://schemas.google.com/blogger/2008/kind#post' />
-
-		{% if entry.created %}
 		<published>{{entry.created|strftime:"%Y-%m-%dT%H:%M:%SZ"}}</published>
-		{% endif %}
 		{% if entry.updated %}
 		<updated>{{entry.updated|strftime:"%Y-%m-%dT%H:%M:%SZ"}}</updated>
 		{% endif %}
-		{% if entry.url %}
-		<link href="{{entry.url}}" />
-		{% endif %}
-		<author>{{user.name}}</author>
+		<category scheme="http://schemas.google.com/g/2005#kind"
+			term="http://schemas.google.com/blogger/2008/kind#post"/>
 		<title type="text">{{entry.title}}</title>
 		{% if entry.summary %}
-		<summary type="html">{{entry.summary}}</summary>
+		<summary type="html">{{entry.summary|escape}}</summary>
 		{% endif %}
-		{% if entry.content %}
-		<content type="html">{{entry.content}}</content>
+		<content type="html">{{entry.content|escape}}</content>
+		{% if entry.url %}
+		<link rel="related" href="{{entry.url}}" />
 		{% endif %}
+		<author>
+			<name>{{user.name}}</name>
+		</author>
 	</entry>
 	{% endfor %}
 </feed>
-
-<!--
-This export was generated using Facebook Exporter, by
-Lars Kellogg-Stedman.  For more information,
-see http://github.com/larsks/fb-export-notes.
--->
 
