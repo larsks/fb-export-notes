@@ -29,7 +29,8 @@ class User (db.Model):
     session_key = db.StringProperty(required=True)
     uid = db.IntegerProperty(required=True)
     name = db.StringProperty()
-    when = db.DateTimeProperty(required=True)
+    last_update = db.DateTimeProperty(required=True)
+    last_export = db.DateTimeProperty()
     selected = db.StringListProperty()
     options = db.StringListProperty()
 
@@ -141,10 +142,12 @@ class Exporter (object):
 
         if 'export' in kwargs:
             selected = kwargs['export']
+            if not isinstance(selected, list):
+                selected = [selected]
         elif user:
             selected = user.selected
         else:
-            selected = None
+            selected = []
 
         if not selected:
             return self.error('You have not selected anything to export.')
@@ -153,15 +156,19 @@ class Exporter (object):
         if 'dedupe' in kwargs:
             options.add('dedupe')
 
-        fbuser = fb.users.getInfo(fb.uid, 'name, first_name, last_name, profile_url')[0]
+        which = kwargs.get('which', 'all')
+
+        print >>sys.stderr, 'DEBUG: options=%s, selected=%s, which=%s' % (options, selected, which)
+
+        fbuser = fb.users.getInfo(fb.uid, 'name, first_name, last_name, profile_url, timezone')[0]
         user = User(
                 key_name = 'uid=%s' % fb.uid,
                 uid = int(fb.uid),
                 name = fbuser['name'],
                 session_key = fb.session_key,
-                when = datetime.datetime.now(),
                 selected = selected,
                 options = list(options),
+                last_update = datetime.datetime.utcnow(),
                 )
 
         user.put()
@@ -171,10 +178,11 @@ class Exporter (object):
             'fb': cherrypy.request.facebook,
             'config': cherrypy.request.app.config['facebook'],
             'user': user,
+            'which': which,
             })
 
     @cherrypy.expose
-    def export(self, uid, format, output_file):
+    def export(self, uid, which, format, output_file):
         '''Generate the exported data.'''
 
         fb = cherrypy.request.facebook
@@ -182,10 +190,21 @@ class Exporter (object):
         if user is None:
             return self.error('You have not selected anything to export.')
 
+        if user.last_export:
+            print >>sys.stderr, 'DEBUG: last visit: %s' % user.last_export
+        else:
+            print >>sys.stderr, 'DEBUG: this is the first visit.'
+
+        print >>sys.stderr, 'DEBUG: which = %s' % which
+
         fb.uid = uid
         fb.session_key = user.session_key
 
         dedupe = 'dedupe' in user.options
+        limits = {}
+
+        if which == 'new' and user.last_export:
+            limits['since'] = user.last_export
 
         try:
             feed = []
@@ -193,11 +212,14 @@ class Exporter (object):
             # Extend feed with each object type selected by the user.
             for x in user.selected:
                 f = getattr(self, 'get_%s' % x)
-                feed.extend(f(dedupe=dedupe))
+                feed.extend(f(dedupe=dedupe, limits=limits))
             
             format = self.formats[format]
             fbuser = fb.users.getInfo(fb.uid, 'name, first_name, last_name, profile_url')[0]
             cherrypy.response.headers['Content-Type'] = format.content_type
+
+            user.last_export = datetime.datetime.utcnow()
+            user.put()
 
             # Format the items in the feed, sorted by date created.
             return format.format(fbuser,
@@ -206,13 +228,25 @@ class Exporter (object):
             return self.render('error', { 'message':
                 'DownloadError: An operation time out; try reloading the page.'})
         
-    def get_notes(self, dedupe=False):
+    def get_notes(self, dedupe=False, limits=None):
         fb = cherrypy.request.facebook
-        notes = fb.fql.query(
-                '''SELECT note_id, created_time,
+
+        fql_select = '''SELECT note_id, created_time,
                     updated_time, title, content
-                    FROM note WHERE uid=%s
-                    ORDER BY created_time DESC''' % fb.uid)
+                    FROM note'''
+        fql_where = [ 'uid = %s' % fb.uid ]
+        fql_order = '''ORDER BY created_time DESC''' % fb.uid
+
+        if limits and limits.get('since'):
+            fql_where.append('created_time > %d'
+                    % time.mktime(limits['since'].utctimetuple()))
+
+        fql = ' '.join([fql_select, 'WHERE',
+                ' AND '.join(fql_where),
+                fql_order])
+
+        print >>sys.stderr, 'DEBUG: fql = %s' % fql
+        notes = fb.fql.query(fql)
 
         feed = []
         last_title = None
@@ -236,14 +270,27 @@ class Exporter (object):
 
         return feed
 
-    def get_status(self, dedupe=False):
+    def get_status(self, dedupe=False, limits=None):
         '''Extract status updates.'''
 
         fb = cherrypy.request.facebook
-        statuses = fb.fql.query(
-                '''SELECT status_id, time, message
-                    FROM status WHERE uid=%s
-                    ORDER BY time DESC''' % fb.uid)
+
+        fql_select = '''SELECT status_id, time, message
+                    FROM status'''
+        fql_where = [ 'uid = %s' % fb.uid ]
+        fql_order = '''ORDER BY time DESC'''
+
+        if limits and limits.get('since'):
+            fql_where.append('time > %d'
+                    % time.mktime(limits['since'].utctimetuple()))
+
+        fql = ' '.join([fql_select, 'WHERE',
+                ' AND '.join(fql_where),
+                fql_order])
+
+        print >>sys.stderr, 'DEBUG: limits = %s' % limits
+        print >>sys.stderr, 'DEBUG: fql = %s' % fql
+        statuses = fb.fql.query(fql)
 
         feed = []
         for status in statuses:
@@ -258,7 +305,7 @@ class Exporter (object):
 
         return feed
 
-    def get_links(self, dedupe=False):
+    def get_links(self, dedupe=False, limits=None):
         fb = cherrypy.request.facebook
         links = fb.fql.query(
                 '''SELECT link_id, created_time, title, summary,

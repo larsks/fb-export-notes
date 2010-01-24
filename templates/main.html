@@ -45,15 +45,37 @@ message.  In general the error will go away if you reload the page.</p>
 		{% if user.selected|contains:"links" %}checked="1"{% endif %}/> Export links</li>
 	</ul>
 
-	</h3>Options</h3>
+	<h3>Options</h3>
 
-	<ul>
-		<li><p><input type="checkbox" name="dedupe"
-		{% if user.options|contains:"dedupe" %}checked="1"{% endif %}/> Filter duplicates by title</p>
+	<table>
+		<tr><td colspan="2"><input type="checkbox" name="dedupe"
+				{% if user.options|contains:"dedupe" %}checked="1"{% endif %}
+				/> Filter duplicates by title</td></tr>
+		<tr><td></td><td>
 		<p>When you edit items in Facebook you may end up with both the old and
 		new version in your export.  Selecting this option will suppress duplicates
 		by filtering out items if they are of the same type and have the same
-		title as the previous item.</p>
+		title as the previous item.</p></td>
+		</tr>
+
+		{% if user.last_export %}
+		<tr>
+			<td>Export</td><td><input type="radio" name="which" value="all"/> All items<td>
+		</tr>
+		<tr>
+			<td></td><td><input type="radio"
+				name="which"
+				value="new"
+				checked="1"/> New items since {{user.last_export|strftime:"%Y-%m-%d %H:%M:%S"}}</td>
+		</tr>
+		<tr>
+			<td></td><td><p>You may elect to export all available items or only
+				items that are new since your last visist.</p></td>
+		</tr>
+		{% endif %}
+	</table>
+
+	<ul>
 		</li>
 	</ul>
 
