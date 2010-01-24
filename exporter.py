@@ -225,8 +225,7 @@ class Exporter (object):
             return format.format(fbuser,
                 sorted(feed, key=lambda x: x['created']))
         except urlfetch.DownloadError:
-            return self.render('error', { 'message':
-                'DownloadError: An operation time out; try reloading the page.'})
+            return self.error('DownloadError: An operation time out; please try again.'})
         
     def get_notes(self, dedupe=False, limits=None):
         fb = cherrypy.request.facebook
@@ -235,7 +234,7 @@ class Exporter (object):
                     updated_time, title, content
                     FROM note'''
         fql_where = [ 'uid = %s' % fb.uid ]
-        fql_order = '''ORDER BY created_time DESC''' % fb.uid
+        fql_order = '''ORDER BY created_time DESC'''
 
         if limits and limits.get('since'):
             fql_where.append('created_time > %d'
