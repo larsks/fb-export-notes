@@ -101,6 +101,8 @@ class Exporter (object):
     @fb_require_login
     def index(self, **kwargs):
         return self.main(**kwargs)
+#        return '''<p>This application is currently offline for maintenance.
+#        Please check back Sunday, 2010-Feb-7, after 6:00pm EST.</p>'''
 
     @cherrypy.expose
     @fb_require_login
@@ -182,7 +184,7 @@ class Exporter (object):
             })
 
     @cherrypy.expose
-    def export(self, uid, which, format, output_file):
+    def export(self, uid, which, format, output_file, retry=0):
         '''Generate the exported data.'''
 
         fb = cherrypy.request.facebook
@@ -206,6 +208,9 @@ class Exporter (object):
         if which == 'new' and user.last_export:
             limits['since'] = user.last_export
 
+        format = self.formats[format]
+        fbuser = fb.users.getInfo(fb.uid, 'name, first_name, last_name, profile_url')[0]
+
         try:
             feed = []
 
@@ -213,20 +218,24 @@ class Exporter (object):
             for x in user.selected:
                 f = getattr(self, 'get_%s' % x)
                 feed.extend(f(dedupe=dedupe, limits=limits))
-            
-            format = self.formats[format]
-            fbuser = fb.users.getInfo(fb.uid, 'name, first_name, last_name, profile_url')[0]
-            cherrypy.response.headers['Content-Type'] = format.content_type
 
             user.last_export = datetime.datetime.utcnow()
             user.put()
 
-            # Format the items in the feed, sorted by date created.
-            return format.format(fbuser,
-                sorted(feed, key=lambda x: x['created']))
         except urlfetch.DownloadError:
-            return self.error('DownloadError: An operation time out; please try again.'})
-        
+            url = '%s/export/%s/%s/%s/facebook_data.%s?retry=1' % (
+                    cherrypy.request.app.config['facebook']['base_url'],
+                    fbuser.uid,
+                    format.id,
+                    format.extension)
+            raise HTTPRedirect(url)
+
+        # Format the items in the feed, sorted by date created.
+        cherrypy.response.headers['Content-Type'] = format.content_type
+        return format.format(fbuser,
+            sorted(feed, key=lambda x: x['created']))
+#    export._cp_config = {'response.stream': True}
+
     def get_notes(self, dedupe=False, limits=None):
         fb = cherrypy.request.facebook
 
